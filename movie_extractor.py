@@ -11,16 +11,16 @@ import time
 import gdata.spreadsheet.service
 import gdata.docs.service
 
-sheetkey = "1q8JUMZ0a4VywZZmg4bh4YFpoQyNBNVb6Xo5Ta4Ikxj8"
-worksheetkey = "default"
-days = ["Monday" , "Tuesday" , "Wednesday" , "Thursday" , "Friday" , "Saturday" , "Sunday"]
-months = [0 , "January" , "February" , "March" , "April" , "May" , "June" , "July" , "August" ,
-          "September" , "October" , "November" , "December"]
+genre_priority = {'Action' : 12 , 'Sci-Fi' : 8 , 'Thriller' : 7 , 'Horror' : 9 , 'Mystery' : 5 ,
+                  'Adventure' : 11 , 'Crime' : 6 , 'Drama' : 13 , 'Animation' : 14 , 'Comedy' : 1 ,
+                  'Fantasy' : 10 , 'History' : 8 , 'Biography' : 7 , 'Romance' : 4 , 'Music' : 3 ,
+                  'War' : 6 , 'NULL' : 100}
 
 def main():
     username = sys.argv[1]
     password = sys.argv[2]
     inputfile = sys.argv[3]
+    sheetkey = sys.argv[4]
 
     # Makes a list containing movie ids
     movieids = []
@@ -33,62 +33,85 @@ def main():
     client = gdata.spreadsheet.service.SpreadsheetsService()
     client.ClientLogin(username, password)
     
-    #client.UpdateCell(1 , 1 , "TEST" , sheetkey , "default")
 
     row = 1
     for movie in movieids:
         query = "http://www.omdbapi.com/?i=" + movie + "&r=json&tomatoes=true"
-        result = urllib2.urlopen(query)
-        jsonData = json.loads( result.read() )
-        createrow(client , row , jsonData)
+        try:
+            result = urllib2.urlopen(query)
+            jsonData = json.loads( result.read() )
+            create_entry(movie , client , row , sheetkey , jsonData)
+        except Exception as ex:
+            print ex
+            pass
         row += 1
 
+# Returns a primary genre from the genre list based on priority
+def get_genre(genres):
+    primary_genre = 'NULL'
+    for genre in genres:
+        if genre_priority[genre] < genre_priority[primary_genre]:
+            primary_genre = genre
+    return primary_genre
 
-def createrow(client , row , jsonData):
+def create_entry(movieID , client , row , sheetkey ,jsonData):
+    # Primary Key/IMDB ID
+    client.UpdateCell(row , 1 , movieID , sheetkey , "default")
+
     # Title
-    client.UpdateCell(row , 1 , jsonData['Title'] , sheetkey , "default")
+    if jsonData['Title'] is not None:
+        client.UpdateCell(row , 2 , jsonData['Title'] , sheetkey , "default")
 
     # Genre
-    genres = jsonData['Genre'].split(", ")
-    client.UpdateCell(row , 2 , genres[0] , sheetkey , "default")
+    if jsonData['Genre'] is not None:
+        genre = get_genre(jsonData['Genre'].split(", "))
+        client.UpdateCell(row , 3 , genre , sheetkey , "default")
 
     # Runtime
-    runtime = jsonData['Runtime'].split(" ")
-    client.UpdateCell(row , 3 , runtime[0] , sheetkey , "default")
+    if jsonData['Runtime'] is not None:
+        tmp = jsonData['Runtime'].split(" ")
+        client.UpdateCell(row , 4 , tmp[0] , sheetkey , "default")
 
     # Rating
-    client.UpdateCell(row , 4 , jsonData['Rated'] , sheetkey , "default")
+    if jsonData['Rated'] is not None:
+        client.UpdateCell(row , 5 , jsonData['Rated'] , sheetkey , "default")
 
     # Production Company
-    client.UpdateCell(row , 5 , jsonData['Production'] , sheetkey , "default")
+    if jsonData['Production'] is not None:
+        client.UpdateCell(row , 6 , jsonData['Production'] , sheetkey , "default")
+
 
     # Box Office Release 10 Dec 2013
-    boxrelease = time.strptime(jsonData['Released'] , "%d %b %Y")
-    client.UpdateCell(row , 6 , days[boxrelease.tm_wday] , sheetkey , "default")
-    client.UpdateCell(row , 7 , months[boxrelease.tm_mon] , sheetkey , "default")
-    client.UpdateCell(row , 8 , str(boxrelease.tm_year) , sheetkey , "default")
+    if jsonData['Released'] is not None:
+        date = time.strptime(jsonData['Released'] , "%d %b %Y")
+        tmp = str(date.tm_year) + "-" + str(date.tm_mon) + "-" +str(date.tm_mday)
+        client.UpdateCell(row , 7 , tmp , sheetkey , "default")
 
     # DVD Release
-    dvdrelease = time.strptime(jsonData['DVD'] , "%d %b %Y")
-    client.UpdateCell(row , 9 , days[dvdrelease.tm_wday] , sheetkey , "default")
-    client.UpdateCell(row , 10 , months[dvdrelease.tm_mon] , sheetkey , "default")
-    client.UpdateCell(row , 11 , str(dvdrelease.tm_year) , sheetkey , "default")
+    if jsonData['DVD'] is not None:
+        date = time.strptime(jsonData['DVD'] , "%d %b %Y")
+        tmp = str(date.tm_year) + "-" + str(date.tm_mon) + "-" +str(date.tm_mday)
+        client.UpdateCell(row , 8 , tmp , sheetkey , "default")
 
     # Box Office Revenue
-    revenue = jsonData['BoxOffice']
-    revenuemils =  revenue[1:re.search("[.]" , revenue).pos]
-    client.UpdateCell(row , 12 , revenuemils , sheetkey , "default")
+    if jsonData['BoxOffice'] is not None:
+        revenue = jsonData['BoxOffice']
+        client.UpdateCell(row , 9 , revenue[1 : len(revenue) - 1] , sheetkey , "default")
 
     # Director
-    client.UpdateCell(row , 16 , jsonData['Director'] , sheetkey , "default")
+    if jsonData['Director'] is not None:
+        client.UpdateCell(row , 10 , jsonData['Director'] , sheetkey , "default")
 
     # Tomato Score
-    client.UpdateCell(row , 17 , jsonData['tomatoMeter'] , sheetkey , "default")
+    if jsonData['tomatoMeter'] is not None:
+        client.UpdateCell(row , 11 , jsonData['tomatoMeter'] , sheetkey , "default")
 
     # IMDB Rating
-    client.UpdateCell(row , 18 , jsonData['imdbRating'] , sheetkey , "default")
+    if jsonData['imdbRating'] is not None:
+        client.UpdateCell(row , 12 , jsonData['imdbRating'] , sheetkey , "default")
 
     # Metascore
-    client.UpdateCell(row , 19 , jsonData['Metascore'] , sheetkey , "default")
+    if jsonData['Metascore'] is not None:
+        client.UpdateCell(row , 13 , jsonData['Metascore'] , sheetkey , "default")
 
 main()
