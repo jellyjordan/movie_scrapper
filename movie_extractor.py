@@ -14,7 +14,7 @@ import gdata.docs.service
 genre_priority = {'Action' : 12 , 'Sci-Fi' : 8 , 'Thriller' : 7 , 'Horror' : 9 , 'Mystery' : 5 ,
                   'Adventure' : 11 , 'Crime' : 6 , 'Drama' : 13 , 'Animation' : 14 , 'Comedy' : 1 ,
                   'Fantasy' : 10 , 'History' : 8 , 'Biography' : 7 , 'Romance' : 4 , 'Music' : 3 ,
-                  'War' : 6 , 'NULL' : 100}
+                  'War' : 6 , 'Sport' : 2 , 'Western' : 4 , 'Musical' : 3 ,'NULL' : 100}
 
 def main():
     username = sys.argv[1]
